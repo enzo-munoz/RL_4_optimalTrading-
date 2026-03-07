@@ -136,7 +136,7 @@ def evaluate_episode(episode_path, model_path, type="prob"):
     plt.grid(True)
     
     plot_filename = f"evaluation_plot_{type}.png"
-    plt.savefig(plot_filename)
+    plt.savefig(os.path.join("eval_plots", plot_filename))
     print(f"Evaluation plot saved to {plot_filename}")
     plt.show()
 

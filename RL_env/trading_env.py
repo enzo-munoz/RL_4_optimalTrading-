@@ -1,3 +1,15 @@
+import numpy as np
+from collections import deque
+from typing import Dict, Tuple
+import sys
+import os
+
+# Add project root to path if not already there
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from lib.constants import SimulationConfig
+from OU.simulate_OU import OUProcess
+
 class TradingEnvironment:
     def __init__(self, config: SimulationConfig, case: int = 3):
         self.config = config

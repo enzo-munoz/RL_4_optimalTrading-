@@ -18,6 +18,7 @@ GRU_HIDDEN_DIM = 1
 LOOKBACK_WINDOW = 10
 
 GRU_OUTPUT_SIZE = 1
+MAX_ACTION = 10.0
 
 class SimulationConfig:
     MAX_ACTION = 10.0
@@ -30,6 +31,7 @@ class SimulationConfig:
     dt = 0.2  # Delta t
     n_steps = 2000  # pas par épisode
     mu_inv = 1.0  # moyenne invariante
+    lookback_window = LOOKBACK_WINDOW
     
     # Régimes theta
     theta_values = [0.9, 1.0, 1.1]

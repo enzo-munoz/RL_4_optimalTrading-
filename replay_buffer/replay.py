@@ -1,3 +1,6 @@
+from collections import deque
+import random
+
 class ReplayBuffer:
     def __init__(self, capacity: int = 100000):
         self.buffer = deque(maxlen=capacity)

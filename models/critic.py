@@ -2,35 +2,28 @@ import torch
 import torch.nn as nn
 from lib.constants import HIDDEN_LAYERS
 
+
 class Critic(nn.Module):
     """
     DDPG Critic Network.
-    Architecture defined in lib/constants.py
+
+    Architecture is per-case (passed via hidden_layers) — defaults to HIDDEN_LAYERS
+    from constants (Case 1: 5 layers × 16 nodes).
+    Input is (state, action) concatenated; output is a scalar Q-value.
     """
-    def __init__(self, state_dim, action_dim):
+
+    def __init__(self, state_dim: int, action_dim: int, hidden_layers=None):
         super(Critic, self).__init__()
-        
+        layers_cfg = hidden_layers if hidden_layers is not None else HIDDEN_LAYERS
+
         layers = []
-        # Input layer takes state and action concatenated
-        input_dim = state_dim + action_dim
-        
-        # Hidden layers
-        for hidden_dim in HIDDEN_LAYERS:
-            layers.append(nn.Linear(input_dim, hidden_dim))
-            layers.append(nn.ReLU())
-            input_dim = hidden_dim
-            
-        # Output layer (Q-value, single scalar)
-        layers.append(nn.Linear(input_dim, 1))
-        
+        d = state_dim + action_dim
+        for h in layers_cfg:
+            layers += [nn.Linear(d, h), nn.ReLU()]
+            d = h
+        layers += [nn.Linear(d, 1)]
+
         self.net = nn.Sequential(*layers)
 
-    def forward(self, state, action):
-        """
-        Args:
-            state (torch.Tensor): State tensor.
-            action (torch.Tensor): Action tensor.
-        Returns:
-            torch.Tensor: Q-value estimate.
-        """
-        return self.net(torch.cat([state, action], 1))
+    def forward(self, state: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        return self.net(torch.cat([state, action], dim=1))

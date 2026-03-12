@@ -35,24 +35,25 @@ def create_sequences(data, input_cols=['S'], target_col='theta', lookback=LOOKBA
         np.array: X sequences of shape (num_samples, lookback, num_features)
         np.array: y targets of shape (num_samples,)
     """
-    data_values = data[input_cols].values
-    target_values = data[target_col].values
-    
-    samples = []
-    targets = []
-    
-    # Ensure we have enough data
-    if len(data) <= lookback:
+    data_values = data[input_cols].values   # (n, n_features)
+    target_values = data[target_col].values # (n,)
+
+    n = len(data_values)
+    if n <= lookback:
         return np.array([]), np.array([])
-        
-    for i in range(len(data) - lookback):
-        sample = data_values[i : i + lookback]
-        outcome = target_values[i + lookback]
-        samples.append(sample)
-        targets.append(outcome)
-        
-    X = np.array(samples)
-    y = np.array(targets)
+
+    n_sequences = n - lookback
+    n_features = data_values.shape[1]
+
+    # Build sliding windows via stride tricks — avoids Python loop
+    item_size = data_values.strides[0]
+    feat_size = data_values.strides[1]
+    X = np.lib.stride_tricks.as_strided(
+        data_values,
+        shape=(n_sequences, lookback, n_features),
+        strides=(item_size, item_size, feat_size),
+    ).copy()
+    y = target_values[lookback:]
 
     if target_col == 'theta':
         # Map theta values to class indices
@@ -117,7 +118,8 @@ def prepare_dataloaders(X, y, batch_size=32, test_size=0.2, shuffle_train=True, 
     train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
     test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    pin = torch.cuda.is_available()
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train, pin_memory=pin)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, pin_memory=pin)
     
     return train_loader, test_loader, (X_train_tensor, y_train_tensor), (X_test_tensor, y_test_tensor)

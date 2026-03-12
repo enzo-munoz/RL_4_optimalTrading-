@@ -74,7 +74,7 @@ class OUProcess:
         self.S = self.config.mu_inv
         return self.S
 
-def simulate_and_save(config: SimulationConfig, case: int):
+def simulate_and_save(config: SimulationConfig, case: int, n_episodes: int = None, start_episode: int = 0):
     """
     Simule et enregistre les données pour un cas spécifique.
     """
@@ -95,29 +95,61 @@ def simulate_and_save(config: SimulationConfig, case: int):
     
     env = OUProcess(config, case=case)
     
-    # Utiliser n_test_episodes pour la génération de données (ou n_episodes si nécessaire)
-    n_episodes = config.n_test_episodes
+    # Utiliser n_episodes si fourni, sinon config.n_test_episodes
+    if n_episodes is None:
+        n_episodes = config.n_test_episodes
+    
     n_steps = config.n_steps
     
-    for episode in range(n_episodes):
+    for i in range(n_episodes):
+        episode_idx = start_episode + i
         env.reset()
         data = []
         for step in range(n_steps):
             S, theta, kappa, sigma = env.step()
+            # Generate random inventory between I_min and I_max
+            I = np.random.uniform(config.I_min, config.I_max)
             # Enregistrer temps, prix, et les paramètres du régime
-            data.append([step * config.dt, S, theta, kappa, sigma])
+            data.append([step * config.dt, S, theta, kappa, sigma, I])
             
         # Sauvegarder en CSV
-        filename = os.path.join(output_dir, f"episode_{episode}.csv")
-        header = "t,S,theta,kappa,sigma"
+        filename = os.path.join(output_dir, f"episode_{episode_idx}.csv")
+        header = "t,S,theta,kappa,sigma,I"
         np.savetxt(filename, data, delimiter=",", header=header, comments="")
         
-        if (episode + 1) % 50 == 0:
-            print(f"  Cas {case}: Épisode {episode + 1}/{n_episodes} sauvegardé.")
+        if (i + 1) % 50 == 0 or (i + 1) == n_episodes:
+            print(f"  Cas {case}: Épisode {episode_idx} sauvegardé ({i + 1}/{n_episodes}).")
 
 if __name__ == "__main__":
-    config = SimulationConfig()
-    
-    # Exécuter pour les 3 cas
-    for case in [1, 2, 3]:
-        simulate_and_save(config, case)
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate OU simulation episodes")
+    parser.add_argument("--case",          type=int, default=1, choices=[1, 2, 3],
+                        help="1=θ only  2=θ+κ  3=θ+κ+σ")
+    parser.add_argument("--n_episodes",    type=int, default=500)
+    parser.add_argument("--start_episode", type=int, default=0)
+    parser.add_argument("--test",          action="store_true",
+                        help="Write to a separate _test subdirectory (held-out evaluation set)")
+    args = parser.parse_args()
+
+    config   = SimulationConfig()
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'replay_buffer', 'data'))
+    _dirs    = {1: 'theta_MK', 2: 'theta_kappa_MK', 3: 'theta_kappa_sigma_MK'}
+    out_dir  = os.path.join(base_dir, _dirs[args.case] + ('_test' if args.test else ''))
+    os.makedirs(out_dir, exist_ok=True)
+
+    env = OUProcess(config, case=args.case)
+    print(f"Generating {args.n_episodes} episodes -> {out_dir}")
+    for i in range(args.n_episodes):
+        ep_idx = args.start_episode + i
+        env.reset()
+        data = []
+        for step in range(config.n_steps):
+            S, theta, kappa, sigma = env.step()
+            I = np.random.uniform(config.I_min, config.I_max)
+            data.append([step * config.dt, S, theta, kappa, sigma, I])
+        np.savetxt(
+            os.path.join(out_dir, f"episode_{ep_idx}.csv"),
+            data, delimiter=",", header="t,S,theta,kappa,sigma,I", comments="",
+        )
+        if (i + 1) % 50 == 0 or (i + 1) == args.n_episodes:
+            print(f"  episode_{ep_idx}.csv  ({i+1}/{args.n_episodes})")
